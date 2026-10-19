@@ -1,0 +1,22 @@
+html, body { overflow: hidden; user-select: none; }
+.widget {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  background: #14171d;
+  border: 1px solid #343946;
+  -webkit-app-region: drag; /* drag the bar anywhere */
+}
+.widget button { -webkit-app-region: no-drag; }
+.count { font-size: 38px; font-weight: 700; width: 44px; text-align: center; color: #e5484d; font-variant-numeric: tabular-nums; }
+.label { flex: 1; font-size: 13px; color: #aab0bd; }
+.time { font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.spacer { flex: 1; }
+.dot { width: 10px; height: 10px; border-radius: 50%; background: #e5484d; animation: pulse 1.2s infinite; }
+.dot.paused { background: #f5a524; animation: none; }
+@keyframes pulse { 50% { opacity: .3; } }
+.wbtn { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 8px; border: 1px solid #2c303a; background: #1b1e26; }
+.wbtn:hover { background: #262a34; }
+.wbtn.stop { background: #e5484d; border-color: #e5484d; }

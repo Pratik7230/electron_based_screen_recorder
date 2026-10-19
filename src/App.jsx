@@ -2,14 +2,12 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   AppWindow, Circle, FolderOpen, Mic, MicOff, Monitor, Pause, Play, RefreshCw, Square, Volume2, VolumeX,
 } from 'lucide-react'
+import { fmt } from './format'
 import './App.css'
 
-const fmt = (s) => {
-  const h = String(Math.floor(s / 3600)).padStart(2, '0')
-  const m = String(Math.floor((s % 3600) / 60)).padStart(2, '0')
-  const sec = String(s % 60).padStart(2, '0')
-  return `${h}:${m}:${sec}`
-}
+const COUNTDOWN_SECONDS = 5
+const CANCELLED = Symbol('cancelled')
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
 function pickMimeType() {
   const options = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm']
@@ -21,7 +19,8 @@ export default function App() {
   const [selectedId, setSelectedId] = useState(null)
   const [systemAudio, setSystemAudio] = useState(true)
   const [micOn, setMicOn] = useState(false)
-  const [status, setStatus] = useState('idle') // idle | recording | paused
+  const [status, setStatus] = useState('idle') // idle | countdown | recording | paused
+  const [count, setCount] = useState(COUNTDOWN_SECONDS)
   const [elapsed, setElapsed] = useState(0)
   const [savedPath, setSavedPath] = useState(null)
   const [error, setError] = useState(null)
@@ -30,6 +29,8 @@ export default function App() {
   const chunksRef = useRef([])
   const streamsRef = useRef([])
   const audioCtxRef = useRef(null)
+  const cancelRef = useRef(false)
+  const handlersRef = useRef({})
 
   const refreshSources = useCallback(async () => {
     const list = await window.recorder.getSources()
@@ -47,11 +48,17 @@ export default function App() {
     return () => { active = false }
   }, [])
 
+  // Recording timer
   useEffect(() => {
     if (status !== 'recording') return
     const t = setInterval(() => setElapsed((e) => e + 1), 1000)
     return () => clearInterval(t)
   }, [status])
+
+  // Keep the floating widget in sync
+  useEffect(() => {
+    if (status !== 'idle') window.recorder.setWidgetState({ phase: status, elapsed, count })
+  }, [status, elapsed, count])
 
   const cleanup = () => {
     streamsRef.current.forEach((s) => s.getTracks().forEach((t) => t.stop()))
@@ -63,8 +70,19 @@ export default function App() {
   const start = async () => {
     setError(null)
     setSavedPath(null)
+    cancelRef.current = false
+    setCount(COUNTDOWN_SECONDS)
+    setStatus('countdown')
     try {
       await window.recorder.selectSource(selectedId)
+      await window.recorder.showWidget() // minimizes this window, shows the floating widget
+
+      for (let i = COUNTDOWN_SECONDS; i > 0; i--) {
+        setCount(i)
+        await sleep(1000)
+        if (cancelRef.current) throw CANCELLED
+      }
+
       const display = await navigator.mediaDevices.getDisplayMedia({
         video: { frameRate: 30 },
         audio: systemAudio,
@@ -90,14 +108,16 @@ export default function App() {
       chunksRef.current = []
       recorder.ondataavailable = (e) => e.data.size && chunksRef.current.push(e.data)
       recorder.onstop = async () => {
+        recorderRef.current = null
         const blob = new Blob(chunksRef.current, { type: 'video/webm' })
         cleanup()
+        await window.recorder.hideWidget() // closes widget, restores this window
+        setStatus('idle')
         try {
           setSavedPath(await window.recorder.saveRecording(await blob.arrayBuffer()))
         } catch (e) {
           setError(e.message)
         }
-        setStatus('idle')
       }
       display.getVideoTracks()[0].onended = () => recorder.state !== 'inactive' && recorder.stop()
 
@@ -107,17 +127,27 @@ export default function App() {
       setStatus('recording')
     } catch (e) {
       cleanup()
-      setError(e.message)
+      setStatus('idle')
+      await window.recorder.hideWidget()
+      if (e !== CANCELLED) setError(e.message)
     }
   }
 
   const togglePause = () => {
     const r = recorderRef.current
+    if (!r) return
     if (status === 'recording') { r.pause(); setStatus('paused') }
     else if (status === 'paused') { r.resume(); setStatus('recording') }
   }
 
   const stop = () => recorderRef.current?.stop()
+  const cancel = () => { cancelRef.current = true }
+
+  // Buttons on the floating widget call these
+  useEffect(() => {
+    handlersRef.current = { pause: togglePause, stop, cancel }
+  })
+  useEffect(() => window.recorder.onWidgetAction((a) => handlersRef.current[a]?.()), [])
 
   const idle = status === 'idle'
 
@@ -155,8 +185,8 @@ export default function App() {
         </div>
 
         <div className="timer">
-          {status !== 'idle' && <span className={`dot ${status}`} />}
-          {fmt(elapsed)}
+          {(status === 'recording' || status === 'paused') && <span className={`dot ${status}`} />}
+          {status === 'countdown' ? `Starting in ${count}…` : fmt(elapsed)}
         </div>
 
         <div className="controls">
@@ -164,6 +194,8 @@ export default function App() {
             <button className="record" onClick={start} disabled={!selectedId}>
               <Circle size={16} fill="currentColor" /> Record
             </button>
+          ) : status === 'countdown' ? (
+            <button className="ghost" onClick={cancel}>Cancel</button>
           ) : (
             <>
               <button className="ghost" onClick={togglePause}>
