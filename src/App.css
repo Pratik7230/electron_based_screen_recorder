@@ -1,0 +1,21 @@
+.app { display: flex; flex-direction: column; height: 100%; }
+header { display: flex; justify-content: space-between; align-items: center; padding: 16px 24px; border-bottom: 1px solid #23262e; }
+h1 { font-size: 18px; margin: 0; font-weight: 600; }
+.grid { flex: 1; overflow-y: auto; padding: 24px; display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); align-content: start; }
+.source { background: #181b22; border: 2px solid transparent; border-radius: 10px; padding: 8px; text-align: left; display: flex; flex-direction: column; gap: 8px; }
+.source:hover:not(:disabled) { border-color: #343946; }
+.source.selected { border-color: #4f8cff; }
+.source img { width: 100%; aspect-ratio: 16/9; object-fit: cover; border-radius: 6px; background: #000; }
+.source span { display: flex; align-items: center; gap: 6px; font-size: 13px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+footer { display: flex; align-items: center; justify-content: space-between; padding: 16px 24px; border-top: 1px solid #23262e; background: #14171d; }
+.toggles, .controls { display: flex; gap: 8px; align-items: center; }
+.toggle, .ghost, .record, .stop { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 8px; border: 1px solid #2c303a; background: #1b1e26; }
+.toggle.on { border-color: #4f8cff; color: #8db4ff; }
+.record { background: #e5484d; border-color: #e5484d; font-weight: 600; padding: 10px 20px; }
+.stop { background: #2c303a; font-weight: 600; }
+.timer { display: flex; align-items: center; gap: 8px; font-variant-numeric: tabular-nums; font-size: 22px; font-weight: 600; }
+.dot { width: 10px; height: 10px; border-radius: 50%; background: #e5484d; animation: pulse 1.2s infinite; }
+.dot.paused { background: #f5a524; animation: none; }
+@keyframes pulse { 50% { opacity: .3; } }
+.toast { position: fixed; bottom: 84px; left: 50%; transform: translateX(-50%); background: #1f2937; border: 1px solid #343946; padding: 10px 14px; border-radius: 8px; display: flex; gap: 12px; align-items: center; font-size: 13px; max-width: 90%; }
+.toast.error { background: #3b1d20; border-color: #e5484d; }
